@@ -111,11 +111,10 @@
         };
 
 
-        function displaySubclassSelector(subclasses) {
-            const subclassSelector = document.getElementById('subclass_selector');
-            const subclassSelect = document.getElementById('subclass');
+        function displaySubclassSelector(selectorId, selectId, subclasses) {
+            const subclassSelector = document.getElementById(selectorId);
+            const subclassSelect = document.getElementById(selectId);
 
-            // Check if subclassSelect exists
             if (!subclassSelect) {
                 console.error("Subclass select element not found.");
                 return;
@@ -136,8 +135,8 @@
             subclassSelector.style.display = 'block';
         }
 
-        function hideSubclassSelector() {
-            const subclassSelector = document.getElementById('subclass_selector');
+        function hideSubclassSelector(selectorId) {
+            const subclassSelector = document.getElementById(selectorId);
             subclassSelector.style.display = 'none';
         }
 
@@ -152,7 +151,7 @@
             const classLevel = parseInt(document.getElementById('class_level').value);
 
             if (!className) {
-                hideSubclassSelector();
+                hideSubclassSelector('subclass_selector');
                 return;
             }
 
@@ -166,21 +165,21 @@
                 const subclassLevel = data.level_required;
 
                 if (classLevel >= subclassLevel) {
-                    displaySubclassSelector(data.subclasses);
+                    displaySubclassSelector('subclass_selector', 'subclass', data.subclasses);
                 } else {
-                    hideSubclassSelector();
+                    hideSubclassSelector('subclass_selector');
                 }
             } catch (error) {
                 console.error("Error fetching subclass data:", error);
             }
         }
-        // Handle subclass logic for multiclass levels
+
         async function handleMulticlassLevelChange(multiclassId) {
             const className = document.getElementById(`multiclass_${multiclassId}`).value;
             const classLevel = parseInt(document.getElementById(`multiclass_level_${multiclassId}`).value);
 
             if (!className) {
-                hideSubclassSelector(multiclassId);
+                hideSubclassSelector(`subclass_selector_${multiclassId}`);
                 return;
             }
 
@@ -193,39 +192,15 @@
                 const subclassLevel = data.level_required;
 
                 if (classLevel >= subclassLevel) {
-                    displayMulticlassSubclassSelector(multiclassId, data.subclasses);
+                    displaySubclassSelector(`subclass_selector_${multiclassId}`, `subclass_${multiclassId}`, data.subclasses);
                 } else {
-                    hideSubclassSelector(multiclassId);
+                    hideSubclassSelector(`subclass_selector_${multiclassId}`);
                 }
             } catch (error) {
                 console.error("Error fetching subclass data:", error);
             }
         }
 
-        // Function to display the subclass selector for multiclass
-        function displayMulticlassSubclassSelector(multiclassId, subclasses) {
-            const subclassSelector = document.getElementById(`subclass_selector_${multiclassId}`);
-            const subclassSelect = document.getElementById(`subclass_${multiclassId}`);
-
-            if (!subclassSelect) {
-                console.error("Subclass select element not found for multiclass:", multiclassId);
-                return;
-            }
-
-            // Clear existing options
-            subclassSelect.innerHTML = '<option value="">Select a subclass</option>';
-
-            // Populate with new options
-            subclasses.forEach(subclass => {
-                const option = document.createElement('option');
-                option.value = subclass;
-                option.textContent = subclass;
-                subclassSelect.appendChild(option);
-            });
-
-            // Make the subclass selector visible
-            subclassSelector.style.display = 'block';
-        }
         function checkMulticlassRequirements(className) {
             const requirements = multiclassRequirements[className];
             if (!requirements) return true;
