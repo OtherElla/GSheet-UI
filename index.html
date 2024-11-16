@@ -1,0 +1,535 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Character Sheet Generator</title>
+    <style>
+        .stat-select {
+            margin: 10px 0;
+        }
+
+        #point-total {
+            font-weight: bold;
+            margin: 20px 0;
+        }
+
+        .error {
+            color: red;
+        }
+
+        .cost-display {
+            display: inline-block;
+            margin-left: 10px;
+            color: #666;
+        }
+
+        .point-total {
+            font-size: 1.2em;
+            margin: 20px 0;
+        }
+
+        .over-limit {
+            color: red;
+        }
+
+        .within-limit {
+            color: green;
+        }
+
+        .generate-button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .generate-button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .name-field {
+            margin: 20px 0;
+        }
+
+        .class-field {
+            margin: 20px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .class-field select {
+            padding: 5px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        }
+
+        .add-class-button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 5px 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 0;
+        }
+
+        .remove-class-button {
+            background-color: #f44336;
+            color: white;
+            padding: 5px 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+
+        .error-message {
+            color: red;
+            margin-left: 10px;
+            font-size: 0.9em;
+        }
+    </style>
+    <script>
+        const multiclassRequirements = {
+            'Barbarian': { 'strength': 13 },
+            'Bard': { 'charisma': 13 },
+            'Cleric': { 'wisdom': 13 },
+            'Druid': { 'wisdom': 13 },
+            'Fighter': { 'strength': 13, 'dexterity': 13 },
+            'Monk': { 'dexterity': 13, 'wisdom': 13 },
+            'Paladin': { 'strength': 13, 'charisma': 13 },
+            'Ranger': { 'dexterity': 13, 'wisdom': 13 },
+            'Rogue': { 'dexterity': 13 },
+            'Sorcerer': { 'charisma': 13 },
+            'Warlock': { 'charisma': 13 },
+            'Wizard': { 'intelligence': 13 }
+        };
+
+
+        function displaySubclassSelector(subclasses) {
+            const subclassSelector = document.getElementById('subclass_selector');
+            const subclassSelect = document.getElementById('subclass');
+
+            // Check if subclassSelect exists
+            if (!subclassSelect) {
+                console.error("Subclass select element not found.");
+                return;
+            }
+
+            // Clear existing options
+            subclassSelect.innerHTML = '<option value="">Select a subclass</option>';
+
+            // Populate with new options
+            subclasses.forEach(subclass => {
+                const option = document.createElement('option');
+                option.value = subclass;
+                option.textContent = subclass;
+                subclassSelect.appendChild(option);
+            });
+
+            // Make the subclass selector visible
+            subclassSelector.style.display = 'block';
+        }
+
+        function hideSubclassSelector() {
+            const subclassSelector = document.getElementById('subclass_selector');
+            subclassSelector.style.display = 'none';
+        }
+
+        // Event listeners to track changes
+        document.addEventListener('DOMContentLoaded', function () {
+            document.getElementById('class_level').addEventListener('change', handleClassLevelChange);
+            document.getElementById('character_class').addEventListener('change', handleClassLevelChange);
+        });
+
+        async function handleClassLevelChange() {
+            const className = document.getElementById('character_class').value;
+            const classLevel = parseInt(document.getElementById('class_level').value);
+
+            if (!className) {
+                hideSubclassSelector();
+                return;
+            }
+
+            // Fetch the subclass information for the selected class
+            try {
+                const response = await fetch(`/get_subclasses/${className}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                const data = await response.json();
+                const subclassLevel = data.level_required;
+
+                if (classLevel >= subclassLevel) {
+                    displaySubclassSelector(data.subclasses);
+                } else {
+                    hideSubclassSelector();
+                }
+            } catch (error) {
+                console.error("Error fetching subclass data:", error);
+            }
+        }
+        // Handle subclass logic for multiclass levels
+        async function handleMulticlassLevelChange(multiclassId) {
+            const className = document.getElementById(`multiclass_${multiclassId}`).value;
+            const classLevel = parseInt(document.getElementById(`multiclass_level_${multiclassId}`).value);
+
+            if (!className) {
+                hideSubclassSelector(multiclassId);
+                return;
+            }
+
+            try {
+                const response = await fetch(`/get_subclasses/${className}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                const data = await response.json();
+                const subclassLevel = data.level_required;
+
+                if (classLevel >= subclassLevel) {
+                    displayMulticlassSubclassSelector(multiclassId, data.subclasses);
+                } else {
+                    hideSubclassSelector(multiclassId);
+                }
+            } catch (error) {
+                console.error("Error fetching subclass data:", error);
+            }
+        }
+
+        // Function to display the subclass selector for multiclass
+        function displayMulticlassSubclassSelector(multiclassId, subclasses) {
+            const subclassSelector = document.getElementById(`subclass_selector_${multiclassId}`);
+            const subclassSelect = document.getElementById(`subclass_${multiclassId}`);
+
+            if (!subclassSelect) {
+                console.error("Subclass select element not found for multiclass:", multiclassId);
+                return;
+            }
+
+            // Clear existing options
+            subclassSelect.innerHTML = '<option value="">Select a subclass</option>';
+
+            // Populate with new options
+            subclasses.forEach(subclass => {
+                const option = document.createElement('option');
+                option.value = subclass;
+                option.textContent = subclass;
+                subclassSelect.appendChild(option);
+            });
+
+            // Make the subclass selector visible
+            subclassSelector.style.display = 'block';
+        }
+        function checkMulticlassRequirements(className) {
+            const requirements = multiclassRequirements[className];
+            if (!requirements) return true;
+
+            const stats = {
+                'strength': parseInt(document.getElementById('strength').value),
+                'dexterity': parseInt(document.getElementById('dexterity').value),
+                'constitution': parseInt(document.getElementById('constitution').value),
+                'intelligence': parseInt(document.getElementById('intelligence').value),
+                'wisdom': parseInt(document.getElementById('wisdom').value),
+                'charisma': parseInt(document.getElementById('charisma').value)
+            };
+
+            // Special case for Fighter which can use STR or DEX
+            if (className === 'Fighter') {
+                return stats.strength >= 13 || stats.dexterity >= 13;
+            }
+
+            // Check all requirements
+            return Object.entries(requirements).every(([stat, minValue]) =>
+                stats[stat] >= minValue
+            );
+        }
+
+        async function calculateTotal() {
+            try {
+                const stats = ['strength', 'dexterity', 'constitution',
+                    'intelligence', 'wisdom', 'charisma'];
+                let scores = [];
+
+                // Collect scores
+                for (const stat of stats) {
+                    const value = parseInt(document.getElementById(stat).value);
+                    scores.push(value);
+                }
+
+                const response = await fetch('/validate_points', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ scores: scores })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                const totalElement = document.getElementById('point-total');
+                const total = result.total || 0;
+
+                // Update total display
+                totalElement.textContent = `Points Spent: ${total}/35`;
+
+                // Visual feedback
+                if (total > 35) {
+                    totalElement.style.color = 'red';
+                    document.getElementById('submit-button').disabled = true;
+                } else {
+                    totalElement.style.color = 'green';
+                    document.getElementById('submit-button').disabled = false;
+                }
+
+                // Update individual costs
+                if (result.individual_costs) {
+                    stats.forEach((stat, index) => {
+                        const costElement = document.getElementById(`${stat}-cost`);
+                        if (costElement) {
+                            costElement.textContent = `Cost: ${result.individual_costs[index]} points`;
+                            costElement.style.color = result.total > 35 ? 'red' : '#666';
+                        }
+                    });
+                }
+
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+
+        // Initial calculation
+        document.addEventListener('DOMContentLoaded', calculateTotal);
+
+        let multiclassCount = 0;
+
+        function addMulticlass() {
+            multiclassCount++;
+            const container = document.getElementById('class-container');
+            const newClassField = document.createElement('div');
+            newClassField.className = 'class-field';
+            newClassField.innerHTML = `
+        <label for="multiclass_${multiclassCount}">Additional Class:</label>
+        <select name="multiclass_${multiclassCount}" 
+                id="multiclass_${multiclassCount}" 
+                onchange="handleMulticlassLevelChange(${multiclassCount})" 
+                required>
+            <option value="">Select a class</option>
+            {% for class in classes %}
+            <option value="{{ class }}">{{ class }}</option>
+            {% endfor %}
+        </select>
+        <select name="multiclass_level_${multiclassCount}" 
+                id="multiclass_level_${multiclassCount}" 
+                onchange="handleMulticlassLevelChange(${multiclassCount})" 
+                required>
+            {% for level in range(1, 21) %}
+            <option value="{{ level }}">Level {{ level }}</option>
+            {% endfor %}
+        </select>
+        <div id="subclass_selector_${multiclassCount}" style="display: none;">
+            <label for="subclass_${multiclassCount}">Subclass:</label>
+            <select id="subclass_${multiclassCount}" name="subclass_${multiclassCount}">
+                <option value="">Select a subclass</option>
+            </select>
+        </div>
+        <button type="button" onclick="removeMulticlass(this)" class="remove-class-button">Remove</button>
+        <span class="error-message" id="error_${multiclassCount}"></span>
+    `;
+            container.appendChild(newClassField);
+        }
+
+        let selectedClasses = [''];  // Empty string for initial unselected primary class
+
+        function validateMulticlass(selectElement) {
+            const className = selectElement.value;
+            const errorId = 'error_' + selectElement.id.split('_')[1];
+            const errorElement = document.getElementById(errorId);
+
+            // Check for duplicate class
+            if (selectedClasses.includes(className)) {
+                errorElement.textContent = `You are already using the ${className} class`;
+                selectElement.value = '';
+                return;
+            }
+
+            // Update selected classes array
+            const index = parseInt(selectElement.id.split('_')[1]) || 0;
+            selectedClasses[index] = className;
+
+            // Check multiclass requirements
+            if (!checkMulticlassRequirements(className)) {
+                errorElement.textContent = `You need the following stats to multiclass into ${className}: 
+                    ${Object.entries(multiclassRequirements[className])
+                        .map(([stat, value]) => `${stat.charAt(0).toUpperCase() + stat.slice(1)} ${value}`)
+                        .join(', ')}`;
+                errorElement.style.color = 'red';
+                selectElement.value = '';
+                selectedClasses[index] = '';
+            } else {
+                errorElement.textContent = '';
+            }
+        }
+
+        function removeMulticlass(button) {
+            const selectElement = button.parentElement.querySelector('select');
+            const index = parseInt(selectElement.id.split('_')[1]);
+            selectedClasses[index] = '';  // Clear the class from tracking
+            button.parentElement.remove();
+        }
+
+        // Update primary class selector to use validation
+        document.addEventListener('DOMContentLoaded', function () {
+            const primaryClass = document.getElementById('character_class');
+            primaryClass.addEventListener('change', function () {
+                validateMulticlass(this);
+            });
+        });
+
+        function collectClassData() {
+    let classes = [];
+
+    // Get primary class data
+    const primaryClass = document.getElementById('character_class');
+    const primaryLevel = document.getElementById('class_level');
+    const primarySubclass = document.getElementById('subclass');
+
+    if (primaryClass && primaryLevel && primaryClass.value) {
+        const classEntry = {
+            class: primaryClass.value,
+            level: primaryLevel.value,
+        };
+        if (primarySubclass && primarySubclass.value) {
+            classEntry.subclass = primarySubclass.value;
+        }
+        classes.push(classEntry);
+    }
+
+    // Get multiclass data
+    const multiclassFields = document.querySelectorAll('.class-field');
+
+    multiclassFields.forEach((field, index) => {
+        if (index === 0) return; // Skip primary class (already added)
+
+        const classSelect = field.querySelector('select[id^="multiclass_"]');
+        const levelSelect = field.querySelector('select[id^="multiclass_level_"]');
+        const subclassSelect = field.querySelector('select[id^="multiclass_subclass_"]');
+
+        if (classSelect && levelSelect && classSelect.value) {
+            const classEntry = {
+                class: classSelect.value,
+                level: levelSelect.value,
+            };
+            if (subclassSelect && subclassSelect.value) {
+                classEntry.subclass = subclassSelect.value;
+            }
+            classes.push(classEntry);
+        }
+    });
+
+    return classes;
+}
+
+        function handleFormSubmit(event) {
+            event.preventDefault();
+            const classData = collectClassData();
+            console.log('Class data to submit:', classData);
+
+            // Create or update hidden input
+            let hiddenInput = event.target.querySelector('input[name="class_data"]');
+            if (!hiddenInput) {
+                hiddenInput = document.createElement('input');
+                hiddenInput.type = 'hidden';
+                hiddenInput.name = 'class_data';
+                event.target.appendChild(hiddenInput);
+            }
+
+            hiddenInput.value = JSON.stringify(classData);
+            event.target.submit();
+        }
+
+    </script>
+</head>
+
+<body>
+    <h1>Character Sheet Generator</h1>
+    <form method="POST" action="/" onsubmit="handleFormSubmit(event)">
+        <div class="name-field">
+            <label for="character_name">Character Name:</label>
+            <input type="text" id="character_name" name="character_name" required>
+        </div>
+
+        <div id="class-container">
+            <div class="class-field">
+                <label for="character_class">Primary Class:</label>
+                <select name="character_class" id="character_class" required>
+                    <option value="">Select a class</option>
+                    {% for class in classes %}
+                    <option value="{{ class }}">{{ class }}</option>
+                    {% endfor %}
+                </select>
+                <select name="class_level" id="class_level" required>
+                    {% for level in range(1, 21) %}
+                    <option value="{{ level }}">Level {{ level }}</option>
+                    {% endfor %}
+                </select>
+                <div id="subclass_selector" style="display: none;">
+                    <label for="subclass">Subclass:</label>
+                    <select id="subclass" name="subclass">
+                        <option value="">Select a subclass</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="multiclass-container">
+            <button type="button" onclick="addMulticlass()" class="add-class-button">Add Multiclass</button>
+        </div>
+
+        <!-- Multiclass Template -->
+        <div class="class-field" id="multiclass_field_n">
+            <!-- Class and Level selectors -->
+            <select id="multiclass_class_n" name="multiclass_class_n">
+                <!-- Class options -->
+            </select>
+            <select id="multiclass_level_n" name="multiclass_level_n">
+                <!-- Level options -->
+            </select>
+            <!-- Subclass selector, initially hidden -->
+            <select id="multiclass_subclass_n" name="multiclass_subclass_n" style="display: none;">
+                <!-- Subclass options will be populated dynamically -->
+            </select>
+        </div>
+
+        <div class="point-total" id="point-total">Points Spent: 0/35</div>
+
+        <div class="stats-container">
+            {% for stat in ['Strength', 'Dexterity', 'Constitution', 'Intelligence', 'Wisdom', 'Charisma'] %}
+            <div class="stat-row">
+                <label for="{{ stat|lower }}">{{ stat }}:</label>
+                <select name="{{ stat|lower }}" id="{{ stat|lower }}" onchange="calculateTotal()">
+                    {% for i in range(6, 19) %}
+                    <option value={{ i }} {% if i==8 %}selected{% endif %}>{{ i }}</option>
+                    {% endfor %}
+                </select>
+                <span class="cost-display" id="{{ stat|lower }}-cost">Cost: 0 points</span>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="button-container" style="margin-top: 20px;">
+            <button type="submit" id="submit-button" class="generate-button">Generate Character Sheet</button>
+        </div>
+    </form>
+</body>
+
+</html>
