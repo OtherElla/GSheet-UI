@@ -7,6 +7,7 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+
 # Initialize Flask app with proper configuration
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
@@ -31,7 +32,6 @@ dnd_subclass_levels = {
     "Witch": 3,
     "Wizard": 3
 }
-
 
 # Subclasses for each class
 dnd_subclasses = {
@@ -187,7 +187,6 @@ def copy_entire_sheet(spreadsheet_id, new_spreadsheet_title):
         print(f"An error occurred: {err}")
         return None
 
-# Example usage
 @app.route('/copy_sheet', methods=['POST'])
 def copy_sheet_route():
     data = request.json
@@ -210,20 +209,10 @@ def update_character_sheet(character_name, class_string, form_data, spreadsheet_
         sheet_name = sheet_metadata['sheets'][0]['properties']['title']
 
         # Update character name
-        sheet.values().update(
-            spreadsheetId=spreadsheet_id,
-            range=f'{sheet_name}!C6',
-            valueInputOption='RAW',
-            body={'values': [[character_name]]}
-        ).execute()
+        update_sheet_value(sheet, spreadsheet_id, f'{sheet_name}!C6', character_name)
 
         # Update class string
-        sheet.values().update(
-            spreadsheetId=spreadsheet_id,
-            range=f'{sheet_name}!T5',
-            valueInputOption='RAW',
-            body={'values': [[class_string]]}
-        ).execute()
+        update_sheet_value(sheet, spreadsheet_id, f'{sheet_name}!T5', class_string)
 
         # Update ability scores
         ability_scores = [
@@ -236,15 +225,18 @@ def update_character_sheet(character_name, class_string, form_data, spreadsheet_
         ]
 
         for cell, value in ability_scores:
-            sheet.values().update(
-                spreadsheetId=spreadsheet_id,
-                range=f'{sheet_name}!{cell}',
-                valueInputOption='RAW',
-                body={'values': [[value]]}
-            ).execute()
+            update_sheet_value(sheet, spreadsheet_id, f'{sheet_name}!{cell}', value)
 
     except HttpError as err:
         print(f"An error occurred: {err}")
+
+def update_sheet_value(sheet, spreadsheet_id, cell_range, value):
+    sheet.values().update(
+        spreadsheetId=spreadsheet_id,
+        range=cell_range,
+        valueInputOption='RAW',
+        body={'values': [[value]]}
+    ).execute()
 
 @app.route('/validate_points', methods=['POST'])
 def validate_points():
@@ -277,7 +269,6 @@ def handle_error(error):
     """Global error handler."""
     print(f"Error occurred: {str(error)}")
     return render_template('index.html', error=str(error), classes=dnd_classes)
-
 
 if __name__ == '__main__':
     app.run(debug=True)
