@@ -450,48 +450,48 @@
         });
 
         function collectClassData() {
-    let classes = [];
+            let classes = [];
 
-    // Get primary class data
-    const primaryClass = document.getElementById('character_class');
-    const primaryLevel = document.getElementById('class_level');
-    const primarySubclass = document.getElementById('subclass');
+            // Get primary class data
+            const primaryClass = document.getElementById('character_class');
+            const primaryLevel = document.getElementById('class_level');
+            const primarySubclass = document.getElementById('subclass');
 
-    if (primaryClass && primaryLevel && primaryClass.value) {
-        const classEntry = {
-            class: primaryClass.value,
-            level: primaryLevel.value,
-        };
-        if (primarySubclass && primarySubclass.value) {
-            classEntry.subclass = primarySubclass.value;
-        }
-        classes.push(classEntry);
-    }
-
-    // Get multiclass data
-    const multiclassFields = document.querySelectorAll('.class-field');
-
-    multiclassFields.forEach((field, index) => {
-        if (index === 0) return; // Skip primary class (already added)
-
-        const classSelect = field.querySelector('select[id^="multiclass_"]');
-        const levelSelect = field.querySelector('select[id^="multiclass_level_"]');
-        const subclassSelect = field.querySelector('select[id^="multiclass_subclass_"]');
-
-        if (classSelect && levelSelect && classSelect.value) {
-            const classEntry = {
-                class: classSelect.value,
-                level: levelSelect.value,
-            };
-            if (subclassSelect && subclassSelect.value) {
-                classEntry.subclass = subclassSelect.value;
+            if (primaryClass && primaryLevel && primaryClass.value) {
+                const classEntry = {
+                    class: primaryClass.value,
+                    level: primaryLevel.value,
+                };
+                if (primarySubclass && primarySubclass.value) {
+                    classEntry.subclass = primarySubclass.value;
+                }
+                classes.push(classEntry);
             }
-            classes.push(classEntry);
-        }
-    });
 
-    return classes;
-}
+            // Get multiclass data
+            const multiclassFields = document.querySelectorAll('.class-field');
+
+            multiclassFields.forEach((field, index) => {
+                if (index === 0) return; // Skip primary class (already added)
+
+                const classSelect = field.querySelector('select[id^="multiclass_"]');
+                const levelSelect = field.querySelector('select[id^="multiclass_level_"]');
+                const subclassSelect = field.querySelector('select[id^="subclass_"]');
+
+                if (classSelect && levelSelect && classSelect.value) {
+                    const classEntry = {
+                        class: classSelect.value,
+                        level: levelSelect.value,
+                    };
+                    if (subclassSelect && subclassSelect.value) {
+                        classEntry.subclass = subclassSelect.value;
+                    }
+                    classes.push(classEntry);
+                }
+            });
+
+            return classes;
+        }
 
         function collectSpellData() {
             const selectedSpells = [];

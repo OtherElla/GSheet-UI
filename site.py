@@ -129,51 +129,34 @@ def process_request(form_data):
     return new_sheet_id
 
 def extract_primary_class_data(form_data):
-    character_class = form_data.get('character_class')
-    character_level = form_data.get('class_level')
-    character_subclass = form_data.get('subclass')
+    class_data = form_data.get('class_data', [])
+    if class_data:
+        primary = class_data[0]
+        character_class = primary.get('class')
+        character_level = primary.get('level')
+        character_subclass = primary.get('subclass')
 
-    if character_class:
-        if character_subclass:
-            primary_class_data = f"{character_subclass} {character_class} {character_level}"
-        else:
-            primary_class_data = f"{character_class} {character_level}"
-        print(f"Added primary class: {primary_class_data}")
-    else:
-        primary_class_data = ""
-        print("No primary class provided")
-
-    return primary_class_data  # Ensure primary_class_data is returned
+        if character_class:
+            if character_subclass:
+                primary_class_data = f"{character_subclass} {character_class} {character_level}"
+            else:
+                primary_class_data = f"{character_class} {character_level}"
+            print(f"Added primary class: {primary_class_data}")
+            return primary_class_data
+    print("No primary class provided")
+    return ""
 
 def extract_multiclass_data(form_data):
-    class_string = ""
-    multiclass_count = 1
-    while True:
-        multiclass_key = f"multiclass_{multiclass_count}"
-        multiclass_level_key = f"multiclass_level_{multiclass_count}"
-        multiclass_subclass_key = f"subclass_{multiclass_count}"
-
-        if multiclass_key in form_data and multiclass_level_key in form_data:
-            multiclass = form_data.get(multiclass_key)
-            multiclass_level = form_data.get(multiclass_level_key)
-            multiclass_subclass = form_data.get(multiclass_subclass_key)
-
-            if multiclass_subclass:
-                multiclass_data = f"{multiclass_subclass} {multiclass} {multiclass_level}"
-            else:
-                multiclass_data = f"{multiclass} {multiclass_level}"
-
-            print(f"Added multiclass: {multiclass_data}")
-            if class_string:
-                class_string += f", {multiclass_data}"
-            else:
-                class_string = multiclass_data
-            multiclass_count += 1
-        else:
-            break
-
-    print(f"Generated class string: {class_string}")
-    return class_string
+    class_data = form_data.get('class_data', [])
+    if len(class_data) > 1:
+        multiclass_entries = class_data[1:]
+        class_string = ", ".join([
+            f"{entry['subclass']} {entry['class']} {entry['level']}" if entry.get('subclass') else f"{entry['class']} {entry['level']}"
+            for entry in multiclass_entries
+        ])
+        print(f"Generated multiclass string: {class_string}")
+        return class_string
+    return ""
 
 def copy_entire_sheet(spreadsheet_id, new_spreadsheet_title):
     creds = get_google_credentials()
@@ -252,9 +235,9 @@ def update_character_sheet(character_name, class_string, form_data, spreadsheet_
             # Define spell cell mappings
             spell_cells = {
                 '1': ['D100:J100', 'N100:T100', 'X100:AD100', 'D101:J101', 
-                      'D102:J102', 'D103:J103', 'D104:J104'],
-                '2': ['N104:T104', 'N101:T101', 'N102:T102', 'N103:T103', 
-                      'X101:AD101', 'X102:AD102', 'X103:AD103', 'X104:AD104']
+                      'D102:J102', 'D103:J103', 'D104:J104', 'N104:T104', 'N101:T101', 'N102:T102', 'N103:T103', 
+                      'X101:AD101', 'X102:AD102', 'X103:AD103', 'X104:AD104'],
+                '2': ['N106:T106', 'N107:T107', 'N108:T108', 'N109:T109', 'N110:T110', "X106:AD106", "X107:AD107", "X108:AD108", "X109:AD109", "X110:AD110", "AH106:AN106", "AH107:AN107", "AH108:AN108", "AH109:AN109", ""],
             }
 
             # Update spells for each level
