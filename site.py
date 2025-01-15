@@ -19,6 +19,7 @@ SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapi
 dnd_subclass_levels = {
     "Barbarian": 3,
     "Bard": 3,
+    "Illriger": 3,
     "Cleric": 1,
     "Druid": 2,
     "Fighter": 3,
@@ -28,9 +29,9 @@ dnd_subclass_levels = {
     "Ranger": 3,
     "Rogue": 3,
     "Sorcerer": 3,
-    "Warlock": 3,
+    "Warlock": 1,
     "Witch": 3,
-    "Wizard": 3
+    "Wizard": 2,
 }
 
 # Subclasses for each class
@@ -40,6 +41,7 @@ dnd_subclasses = {
     'Cleric': ['Knowledge Domain', 'Life Domain', 'Light Domain', 'Nature Domain', 'Tempest Domain', 'Trickery Domain', 'War Domain'],
     'Druid': ['Circle of the Land', 'Circle of the Moon'],
     'Fighter': ['Champion', 'Battle Master', 'Eldritch Knight'],
+    "Illriger": ['Path of the Bloodrager', 'Path of the Soulblade', 'Path of the Warbringer'],
     'Jaeger': ['Sanguine', 'Salvation', 'Absolute', 'Heretic'],
     'Monk': ['Way of the Open Hand', 'Way of Shadow', 'Way of the Four Elements'],
     'Paladin': ['Oath of Devotion', 'Oath of the Ancients', 'Oath of Vengeance'],
@@ -53,10 +55,25 @@ dnd_subclasses = {
 
 # Define DnD classes at the global scope
 dnd_classes = [
-    'Barbarian', 'Bard', 'Cleric', 'Druid', 'Fighter',
+    'Barbarian', 'Bard', 'Cleric', 'Druid', 'Fighter', 'Illriger',
     'Monk', 'Paladin', 'Ranger', 'Jaeger', 'Rogue', 'Sorcerer',
     'Warlock', 'Witch', 'Wizard'
 ]
+
+# Example spell data
+dnd_spells = {
+    'Wizard': {
+        1: ['Magic Missile', 'Shield'],
+        2: ['Misty Step', 'Scorching Ray'],
+        # ...additional levels and spells...
+    },
+    'Cleric': {
+        1: ['Cure Wounds', 'Guiding Bolt'],
+        2: ['Lesser Restoration', 'Spiritual Weapon'],
+        # ...additional levels and spells...
+    },
+    # ...additional classes and spells...
+}
 
 def get_google_credentials():
     """Get or refresh Google API credentials."""
@@ -250,6 +267,12 @@ def get_subclasses(class_name):
     subclasses = dnd_subclasses.get(class_name, [])
     subclass_level = dnd_subclass_levels.get(class_name, 0)
     return jsonify({'subclasses': subclasses, 'level_required': subclass_level})
+
+@app.route('/get_spells/<string:class_name>', methods=['GET'])
+def get_spells(class_name):
+    """Return spells for a specific class."""
+    spells = dnd_spells.get(class_name, {})
+    return jsonify(spells)
 
 @app.route('/', methods=['GET', 'POST'])
 def index():

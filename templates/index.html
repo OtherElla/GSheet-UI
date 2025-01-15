@@ -5,6 +5,28 @@
 <head>
     <title>Character Sheet Generator</title>
     <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #4CAF50;
+        }
+
         .stat-select {
             margin: 10px 0;
         }
@@ -44,6 +66,11 @@
             border: none;
             border-radius: 4px;
             cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .generate-button:hover {
+            background-color: #45a049;
         }
 
         .generate-button:disabled {
@@ -51,47 +78,99 @@
             cursor: not-allowed;
         }
 
-        .name-field {
+        .name-field,
+        .class-field,
+        .spell-select,
+        .multiclass-container,
+        .stats-container,
+        .button-container {
             margin: 20px 0;
         }
 
-        .class-field {
-            margin: 20px 0;
+        .class-field,
+        .spell-select,
+        .multiclass-container {
             display: flex;
             align-items: center;
             gap: 10px;
         }
 
-        .class-field select {
+        .class-field select,
+        .spell-select select,
+        .stats-container select {
             padding: 5px;
             border-radius: 4px;
             border: 1px solid #ccc;
         }
 
-        .add-class-button {
-            background-color: #4CAF50;
-            color: white;
+        .add-class-button,
+        .remove-class-button {
             padding: 5px 10px;
             border: none;
             border-radius: 4px;
             cursor: pointer;
-            margin: 10px 0;
+            transition: background-color 0.3s;
+        }
+
+        .add-class-button {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        .add-class-button:hover {
+            background-color: #45a049;
         }
 
         .remove-class-button {
             background-color: #f44336;
             color: white;
-            padding: 5px 10px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            margin-left: 10px;
+        }
+
+        .remove-class-button:hover {
+            background-color: #e53935;
         }
 
         .error-message {
             color: red;
             margin-left: 10px;
             font-size: 0.9em;
+        }
+
+        .spell-select {
+            margin: 20px 0;
+        }
+
+        #selected-spells-container {
+            margin: 20px 0;
+        }
+
+        #selected-spells-container h3 {
+            margin-bottom: 10px;
+        }
+
+        #selected-spells li {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 5px 10px;
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 5px;
+        }
+
+        #selected-spells li button {
+            background-color: #f44336;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            padding: 5px 10px;
+            transition: background-color 0.3s;
+        }
+
+        #selected-spells li button:hover {
+            background-color: #e53935;
         }
     </style>
     <script>
@@ -432,64 +511,177 @@
             event.target.submit();
         }
 
+        async function handleClassChange() {
+            const className = document.getElementById('character_class').value;
+            const classLevel = parseInt(document.getElementById('class_level').value);
+
+            if (!className) {
+                hideSubclassSelector('subclass_selector');
+                hideSpellSelector('spell_selector');
+                return;
+            }
+
+            // Fetch the subclass information for the selected class
+            try {
+                const response = await fetch(`/get_subclasses/${className}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                const data = await response.json();
+                const subclassLevel = data.level_required;
+
+                if (classLevel >= subclassLevel) {
+                    displaySubclassSelector('subclass_selector', 'subclass', data.subclasses);
+                } else {
+                    hideSubclassSelector('subclass_selector');
+                }
+            } catch (error) {
+                console.error("Error fetching subclass data:", error);
+            }
+
+            // Fetch the spell information for the selected class
+            try {
+                const response = await fetch(`/get_spells/${className}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                const data = await response.json();
+                displaySpellSelector('spell_selector', 'spells', data);
+            } catch (error) {
+                console.error("Error fetching spell data:", error);
+            }
+        }
+
+        function displaySpellSelector(selectorId, selectId, spells) {
+            const spellSelector = document.getElementById(selectorId);
+            const spellSelect = document.getElementById(selectId);
+
+            if (!spellSelect) {
+                console.error("Spell select element not found.");
+                return;
+            }
+
+            // Clear existing options
+            spellSelect.innerHTML = '<option value="">Select a spell</option>';
+
+            // Populate with new options
+            for (const [level, spellList] of Object.entries(spells)) {
+                spellList.forEach(spell => {
+                    const option = document.createElement('option');
+                    option.value = `${level}: ${spell}`;
+                    option.textContent = `Level ${level}: ${spell}`;
+                    spellSelect.appendChild(option);
+                });
+            }
+
+            // Make the spell selector visible
+            spellSelector.style.display = 'block';
+        }
+
+        function hideSpellSelector(selectorId) {
+            const spellSelector = document.getElementById(selectorId);
+            spellSelector.style.display = 'none';
+        }
+
+        function addSelectedSpell() {
+            const spellSelect = document.getElementById('spells');
+            const selectedSpell = spellSelect.value;
+
+            if (selectedSpell) {
+                const selectedSpellsContainer = document.getElementById('selected-spells');
+                const spellItem = document.createElement('li');
+                spellItem.textContent = selectedSpell;
+
+                // Add a remove button for each spell
+                const removeButton = document.createElement('button');
+                removeButton.textContent = 'Remove';
+                removeButton.className = 'remove-spell-button';
+                removeButton.onclick = function() {
+                    selectedSpellsContainer.removeChild(spellItem);
+                };
+
+                spellItem.appendChild(removeButton);
+                selectedSpellsContainer.appendChild(spellItem);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            document.getElementById('character_class').addEventListener('change', handleClassChange);
+            document.getElementById('class_level').addEventListener('change', handleClassChange);
+            document.getElementById('spells').addEventListener('change', addSelectedSpell);
+        });
     </script>
 </head>
 
 <body>
-    <h1>Character Sheet Generator</h1>
-    <form method="POST" action="/" onsubmit="handleFormSubmit(event)">
-        <div class="name-field">
-            <label for="character_name">Character Name:</label>
-            <input type="text" id="character_name" name="character_name" required>
-        </div>
+    <div class="container">
+        <h1>Character Sheet Generator</h1>
+        <form method="POST" action="/" onsubmit="handleFormSubmit(event)">
+            <div class="name-field">
+                <label for="character_name">Character Name:</label>
+                <input type="text" id="character_name" name="character_name" required>
+            </div>
 
-        <div id="class-container">
-            <div class="class-field">
-                <label for="character_class">Primary Class:</label>
-                <select name="character_class" id="character_class" required>
-                    <option value="">Select a class</option>
-                    {% for class in classes %}
-                    <option value="{{ class }}">{{ class }}</option>
-                    {% endfor %}
-                </select>
-                <select name="class_level" id="class_level" required>
-                    {% for level in range(1, 21) %}
-                    <option value="{{ level }}">Level {{ level }}</option>
-                    {% endfor %}
-                </select>
-                <div id="subclass_selector" style="display: none;">
-                    <label for="subclass">Subclass:</label>
-                    <select id="subclass" name="subclass">
-                        <option value="">Select a subclass</option>
+            <div id="class-container">
+                <div class="class-field">
+                    <label for="character_class">Primary Class:</label>
+                    <select name="character_class" id="character_class" required>
+                        <option value="">Select a class</option>
+                        {% for class in classes %}
+                        <option value="{{ class }}">{{ class }}</option>
+                        {% endfor %}
                     </select>
+                    <select name="class_level" id="class_level" required>
+                        {% for level in range(1, 21) %}
+                        <option value="{{ level }}">Level {{ level }}</option>
+                        {% endfor %}
+                    </select>
+                    <div id="subclass_selector" style="display: none;">
+                        <label for="subclass">Subclass:</label>
+                        <select id="subclass" name="subclass">
+                            <option value="">Select a subclass</option>
+                        </select>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <div class="multiclass-container">
-            <button type="button" onclick="addMulticlass()" class="add-class-button">Add Multiclass</button>
-        </div>
-
-        <div class="point-total" id="point-total">Points Spent: 0/35</div>
-
-        <div class="stats-container">
-            {% for stat in ['Strength', 'Dexterity', 'Constitution', 'Intelligence', 'Wisdom', 'Charisma'] %}
-            <div class="stat-row">
-                <label for="{{ stat|lower }}">{{ stat }}:</label>
-                <select name="{{ stat|lower }}" id="{{ stat|lower }}" onchange="calculateTotal()">
-                    {% for i in range(6, 19) %}
-                    <option value={{ i }} {% if i==8 %}selected{% endif %}>{{ i }}</option>
-                    {% endfor %}
+            <div id="spell_selector" class="spell-select" style="display: none;">
+                <label for="spells">Spells:</label>
+                <select id="spells" name="spells">
+                    <option value="">Select a spell</option>
                 </select>
-                <span class="cost-display" id="{{ stat|lower }}-cost">Cost: 0 points</span>
             </div>
-            {% endfor %}
-        </div>
 
-        <div class="button-container" style="margin-top: 20px;">
-            <button type="submit" id="submit-button" class="generate-button">Generate Character Sheet</button>
-        </div>
-    </form>
+            <div id="selected-spells-container">
+                <h3>Selected Spells:</h3>
+                <ul id="selected-spells"></ul>
+            </div>
+
+            <div class="multiclass-container">
+                <button type="button" onclick="addMulticlass()" class="add-class-button">Add Multiclass</button>
+            </div>
+
+            <div class="point-total" id="point-total">Points Spent: 0/35</div>
+
+            <div class="stats-container">
+                {% for stat in ['Strength', 'Dexterity', 'Constitution', 'Intelligence', 'Wisdom', 'Charisma'] %}
+                <div class="stat-row">
+                    <label for="{{ stat|lower }}">{{ stat }}:</label>
+                    <select name="{{ stat|lower }}" id="{{ stat|lower }}" onchange="calculateTotal()">
+                        {% for i in range(6, 19) %}
+                        <option value={{ i }} {% if i==8 %}selected{% endif %}>{{ i }}</option>
+                        {% endfor %}
+                    </select>
+                    <span class="cost-display" id="{{ stat|lower }}-cost">Cost: 0 points</span>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="button-container" style="margin-top: 20px;">
+                <button type="submit" id="submit-button" class="generate-button">Generate Character Sheet</button>
+            </div>
+        </form>
+    </div>
 </body>
 
 </html>
