@@ -170,7 +170,29 @@ dnd_spells = {
         8: [],
         9: [],
     },
+    "Barbarian": {
+        0: [],
+        1: [],  # Barbarians typically do not have spells
+        # ...additional levels if needed...
+    },
+    "Fighter": {
+        0: [],
+        1: [],  # Fighters may gain spells at higher levels or via subclasses
+        # ...additional levels if needed...
+    },
+    "Monk": {
+        0: [],
+        1: [],  # Monks typically do not have spells
+        # ...additional levels if needed...
+    },
+    "Rogue": {
+        0: [],
+        1: [],  # Rogues typically do not have spells
+        # ...additional levels if needed...
+    },
+    # Add other classes as needed
 }
+
 # Define caster progression for each class
 caster_progression = {
     "Wizard": {
@@ -307,16 +329,11 @@ def calculate_point_buy(scores):
     MAX_SCORE = 18
 
     def calculate_points(score):
-        if score < 8:
-            return score - 6
-        elif score < 14:
-            return score - 8
-        else:
-            return 2 * (score - 14) + 7
+        # This formula calculates the point cost for a given ability score based on a custom polynomial equation.
+        return round(0.01515 * score ** 3 - 0.4196 * score ** 2 + 4.739 * score - 18.701)
 
     if not all(MIN_SCORE <= score <= MAX_SCORE for score in scores):
         return {'is_valid': False, 'total': 0, 'individual_costs': []}
-    
     individual_costs = [calculate_points(score) for score in scores]
     total = sum(individual_costs)
     return {
@@ -496,12 +513,39 @@ def get_subclasses(class_name):
     return jsonify({'subclasses': subclasses, 'level_required': subclass_level})
 
 @app.route('/get_spells/<string:class_name>', methods=['GET'])
+def get_spells_route(class_name):
+    return get_spells(class_name)
+
 def get_spells(class_name):
-    """Return spells for a specific class."""
-    spells = dnd_spells.get(class_name)
-    if not spells:
-        return jsonify({'error': 'Class not found or no spells available for this class'}), 404
-    return jsonify(spells)
+    """Endpoint to get spells for a given class."""
+    spells = dnd_spells.get(class_name, {})
+    # Example response structure
+    response = {
+        "level_required": 1,  # Adjust as needed per class
+        "spells": spells
+    }
+    return jsonify(response)
+
+def get_combined_spells(class_names):
+    """Return combined spells for a list of classes."""
+    combined_spells = []
+    for class_name in class_names:
+        spells = dnd_spells.get(class_name, {})
+        for level, spell_list in spells.items():
+            for spell in spell_list:
+                combined_spells.append(f"Level {level}: {spell}")
+    # Remove duplicates and sort
+    combined_spells = sorted(list(set(combined_spells)))
+    return combined_spells
+
+@app.route('/get_combined_spells', methods=['POST'])
+def get_combined_spells_route():
+    data = request.json
+    class_names = data.get('class_names', [])
+    if not isinstance(class_names, list) or not all(isinstance(cls, str) for cls in class_names):
+        return jsonify({'error': 'Invalid input. class_names must be a list of strings.'}), 400
+    spells = get_combined_spells(class_names)
+    return jsonify({'spells': spells})
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
