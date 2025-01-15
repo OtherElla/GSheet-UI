@@ -534,7 +534,8 @@
             }).then(response => response.json())
               .then(data => {
                   console.log('Success:', data);
-                  // Handle success (e.g., redirect to result page)
+                  // Redirect to result page with data
+                  window.location.href = `/result?character_name=${encodeURIComponent(data.character_name)}&sheet_id=${data.sheet_id}`;
               })
               .catch((error) => {
                   console.error('Error:', error);

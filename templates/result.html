@@ -2,27 +2,71 @@
 <html>
 
 <head>
-    <title>Character Sheet Generated</title>
+    <title>Character Sheet Result</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #4CAF50;
+        }
+
+        .details {
+            margin-top: 20px;
+            font-size: 1.1em;
+        }
+
+        .details p {
+            margin: 10px 0;
+        }
+
+        .back-button,
+        .open-sheet-button {
+            display: block;
+            margin: 30px auto 0;
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            text-align: center;
+            text-decoration: none;
+            border-radius: 4px;
+            width: 200px;
+            transition: background-color 0.3s;
+        }
+
+        .back-button:hover,
+        .open-sheet-button:hover {
+            background-color: #45a049;
+        }
+    </style>
 </head>
-<style>
-    .button {
-        display: inline-block;
-        padding: 10px 20px;
-        background-color: #4CAF50;
-        color: white;
-        text-decoration: none;
-        border-radius: 4px;
-        margin: 10px 0;
-    }
-</style>
 
 <body>
-    <h1>Character Sheet Generated Successfully!</h1>
-    <p>Character Name: {{ character_name }}</p>
-    <p>Your character sheet is ready!</p>
-    <a href="https://docs.google.com/spreadsheets/d/{{ sheet_id }}/edit" target="_blank" class="button">Open Character Sheet</a>
-    <br>
-    <a href="/" class="button" style="background-color: #666;">Create Another Character</a>
+    <div class="container">
+        <h1>Character Sheet Generated</h1>
+        <div class="details">
+            <p><strong>Character Name:</strong> {{ character_name }}</p>
+            <p><strong>Sheet ID:</strong> {{ sheet_id }}</p>
+            <!-- Add more details as needed -->
+            <p><a href="https://docs.google.com/spreadsheets/d/{{ sheet_id }}/edit" target="_blank" class="open-sheet-button">Open Sheet</a></p>
+        </div>
+        <a href="/" class="back-button">Create Another Character</a>
+    </div>
 </body>
 
 </html>

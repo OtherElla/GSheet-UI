@@ -305,6 +305,12 @@ def index():
     else:
         return render_template('index.html', classes=dnd_classes, subclasses=dnd_subclasses)
 
+@app.route('/result')
+def result():
+    sheet_id = request.args.get('sheet_id')
+    character_name = request.args.get('character_name')
+    return render_template('result.html', sheet_id=sheet_id, character_name=character_name)
+
 @app.errorhandler(Exception)
 def handle_error(error):
     """Global error handler."""
