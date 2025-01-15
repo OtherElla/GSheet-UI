@@ -493,21 +493,46 @@
     return classes;
 }
 
+        function collectSpellData() {
+            const selectedSpells = [];
+            const spellItems = document.querySelectorAll('#selected-spells li');
+            spellItems.forEach(item => {
+                // Get only the text content without the Remove button text
+                const spellText = item.childNodes[0].textContent.trim();
+                selectedSpells.push(spellText);
+            });
+            console.log('Collected spells:', selectedSpells);
+            return selectedSpells;
+        }
+
         function handleFormSubmit(event) {
             event.preventDefault();
             const classData = collectClassData();
-            console.log('Class data to submit:', classData);
+            const spellData = collectSpellData();
+            console.log('Spell data before JSON:', spellData);
 
-            // Create or update hidden input
-            let hiddenInput = event.target.querySelector('input[name="class_data"]');
-            if (!hiddenInput) {
-                hiddenInput = document.createElement('input');
-                hiddenInput.type = 'hidden';
-                hiddenInput.name = 'class_data';
-                event.target.appendChild(hiddenInput);
+            let hiddenClassInput = event.target.querySelector('input[name="class_data"]');
+            let hiddenSpellInput = event.target.querySelector('input[name="spells"]');
+
+            if (!hiddenClassInput) {
+                hiddenClassInput = document.createElement('input');
+                hiddenClassInput.type = 'hidden';
+                hiddenClassInput.name = 'class_data';
+                event.target.appendChild(hiddenClassInput);
             }
 
-            hiddenInput.value = JSON.stringify(classData);
+            if (!hiddenSpellInput) {
+                hiddenSpellInput = document.createElement('input');
+                hiddenSpellInput.type = 'hidden';
+                hiddenSpellInput.name = 'spells';
+                event.target.appendChild(hiddenSpellInput);
+            }
+
+            const spellJSON = JSON.stringify(spellData);
+            console.log('Spell JSON:', spellJSON);
+
+            hiddenClassInput.value = JSON.stringify(classData);
+            hiddenSpellInput.value = spellJSON;
             event.target.submit();
         }
 

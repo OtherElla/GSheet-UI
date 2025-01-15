@@ -19,7 +19,7 @@ SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapi
 dnd_subclass_levels = {
     "Barbarian": 3,
     "Bard": 3,
-    "Illriger": 3,
+    "Illrigger": 3,
     "Cleric": 1,
     "Druid": 2,
     "Fighter": 3,
@@ -41,7 +41,7 @@ dnd_subclasses = {
     'Cleric': ['Knowledge Domain', 'Life Domain', 'Light Domain', 'Nature Domain', 'Tempest Domain', 'Trickery Domain', 'War Domain'],
     'Druid': ['Circle of the Land', 'Circle of the Moon'],
     'Fighter': ['Champion', 'Battle Master', 'Eldritch Knight'],
-    "Illriger": ['Path of the Bloodrager', 'Path of the Soulblade', 'Path of the Warbringer'],
+    "Illrigger": ['Path of the Bloodrager', 'Path of the Soulblade', 'Path of the Warbringer'],
     'Jaeger': ['Sanguine', 'Salvation', 'Absolute', 'Heretic'],
     'Monk': ['Way of the Open Hand', 'Way of Shadow', 'Way of the Four Elements'],
     'Paladin': ['Oath of Devotion', 'Oath of the Ancients', 'Oath of Vengeance'],
@@ -55,7 +55,7 @@ dnd_subclasses = {
 
 # Define DnD classes at the global scope
 dnd_classes = [
-    'Barbarian', 'Bard', 'Cleric', 'Druid', 'Fighter', 'Illriger',
+    'Barbarian', 'Bard', 'Cleric', 'Druid', 'Fighter', 'Illrigger',
     'Monk', 'Paladin', 'Ranger', 'Jaeger', 'Rogue', 'Sorcerer',
     'Warlock', 'Witch', 'Wizard'
 ]
@@ -76,11 +76,28 @@ dnd_spells = {
 }
 
 def get_google_credentials():
-    """Get or refresh Google API credentials."""
+    """
+    Get or refresh Google API credentials.
+
+    This function checks for existing Google API credentials in a file named 'token.json'.
+    If the credentials are not found or are invalid, it initiates an OAuth2 flow to obtain new credentials.
+    The credentials are then saved to 'token.json' for future use.
+
+    Returns:
+        Credentials: The Google API credentials.
+    """
     creds = None
     if os.path.exists("token.json"):
         creds = Credentials.from_authorized_user_file("token.json", SCOPES)
-    if not creds or not creds.valid:
+    if not creds:
+        flow = InstalledAppFlow.from_client_secrets_file("credentials.json", SCOPES)
+        creds = flow.run_local_server(port=0)
+    elif not creds.valid:
+        if creds.expired and creds.refresh_token:
+            creds = flow.run_local_server(port=0, authorization_prompt_message='Please visit this URL to authorize this application: {url}')
+        else:
+            flow = InstalledAppFlow.from_client_secrets_file("credentials.json", SCOPES)
+            creds = flow.run_local_server(port=0)
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
@@ -95,11 +112,16 @@ def calculate_point_buy(scores):
     MAX_SCORE = 18
 
     def calculate_points(score):
-        # This formula calculates the point cost for a given ability score based on a custom polynomial equation.
-        return round(0.01515 * score ** 3 - 0.4196 * score ** 2 + 4.739 * score - 18.701)
+        if score < 8:
+            return score - 6
+        elif score < 14:
+            return score - 8
+        else:
+            return 2 * (score - 14) + 7
 
     if not all(MIN_SCORE <= score <= MAX_SCORE for score in scores):
-        return {'is_valid': False, 'total': 0, 'individual_costs': []}
+        raise ValueError(f"Scores must be between {MIN_SCORE} and {MAX_SCORE}.")
+    
     individual_costs = [calculate_points(score) for score in scores]
     total = sum(individual_costs)
     return {
@@ -118,6 +140,9 @@ def process_request(form_data):
     new_sheet_id = copy_entire_sheet('1Mx-R-sDVDcV-tEMXz0KrMlKij2BejMXD9AYxp3O6OX4', character_name)
     if new_sheet_id:
         update_character_sheet(character_name, class_string, form_data, new_sheet_id)
+    else:
+        print("Failed to copy the sheet.")
+        return None
     return new_sheet_id
 
 def extract_primary_class_data(form_data):
@@ -167,30 +192,12 @@ def extract_multiclass_data(form_data):
     print(f"Generated class string: {class_string}")
     return class_string
 
-def copy_sheet(spreadsheet_id, sheet_id, new_sheet_name):
-    creds = get_google_credentials()
-    try:
-        service = build('sheets', 'v4', credentials=creds)
-        request_body = {
-            'requests': [
-                {
-                    'duplicateSheet': {
-                        'sourceSheetId': sheet_id,
-                        'newSheetName': new_sheet_name
-                    }
-                }
-            ]
-        }
-        response = service.spreadsheets().batchUpdate(
-            spreadsheetId=spreadsheet_id,
-            body=request_body
-        ).execute()
-        print(f"Sheet copied: {response}")
-    except HttpError as err:
-        print(f"An error occurred: {err}")
-
 def copy_entire_sheet(spreadsheet_id, new_spreadsheet_title):
     creds = get_google_credentials()
+    if creds is None:
+        print("Failed to obtain Google credentials.")
+        return None
+
     try:
         service = build('drive', 'v3', credentials=creds)
         # Copy the entire spreadsheet
@@ -221,14 +228,11 @@ def update_character_sheet(character_name, class_string, form_data, spreadsheet_
         service = build('sheets', 'v4', credentials=creds)
         sheet = service.spreadsheets()
 
-        # Get the sheet name dynamically
         sheet_metadata = sheet.get(spreadsheetId=spreadsheet_id).execute()
         sheet_name = sheet_metadata['sheets'][0]['properties']['title']
 
-        # Update character name
+        # Update character name, class string, and ability scores
         update_sheet_value(sheet, spreadsheet_id, f'{sheet_name}!C6', character_name)
-
-        # Update class string
         update_sheet_value(sheet, spreadsheet_id, f'{sheet_name}!T5', class_string)
 
         # Update ability scores
@@ -244,20 +248,65 @@ def update_character_sheet(character_name, class_string, form_data, spreadsheet_
         for cell, value in ability_scores:
             update_sheet_value(sheet, spreadsheet_id, f'{sheet_name}!{cell}', value)
 
+        # Update spells
+        spells_str = form_data.get('spells', '[]')
+        print(f"Raw spells string: {spells_str}")
+        
+        try:
+            spells = json.loads(spells_str)
+            print(f"Parsed spells: {spells}")
+            
+            # Define cell mappings for different spell levels
+            spell_cells = {
+                '1': ['D100:J100', 'N100:T100', 'X100:AD100', 'D101:J101', 
+                      'D102:J102', 'D103:J103', 'D104:J104'],
+                '2': ['N104:T104', 'N101:T101', 'N102:T102', 'N103:T103', 
+                      'X101:AD101', 'X102:AD102', 'X103:AD103', 'X104:AD104']
+            }
+
+            # Group spells by level
+            spell_groups = {}
+            for spell in spells:
+                if ':' in spell:
+                    level, spell_name = spell.split(':', 1)
+                    level = level.strip()
+                    spell_name = spell_name.strip()
+                    if level not in spell_groups:
+                        spell_groups[level] = []
+                    spell_groups[level].append(spell_name)
+
+            # Update spells for each level
+            for level, level_spells in spell_groups.items():
+                if level in spell_cells:
+                    for cell, spell in zip(spell_cells[level], level_spells):
+                        print(f"Updating {level} spell: {spell} in cell {cell}")
+                        update_sheet_value(sheet, spreadsheet_id, f'{sheet_name}!{cell}', spell)
+
+        except json.JSONDecodeError as err:
+            print(f"JSON decode error: {err}")
+            print(f"Problematic string: {spells_str}")
+        except Exception as err:
+            print(f"Error processing spells: {err}")
+
     except HttpError as err:
         print(f"An error occurred: {err}")
 
 def update_sheet_value(sheet, spreadsheet_id, cell_range, value):
-    sheet.values().update(
-        spreadsheetId=spreadsheet_id,
-        range=cell_range,
-        valueInputOption='RAW',
-        body={'values': [[value]]}
-    ).execute()
+    try:
+        sheet.values().update(
+            spreadsheetId=spreadsheet_id,
+            range=cell_range,
+            valueInputOption='RAW',
+            body={'values': [[value]]}
+        ).execute()
+    except HttpError as err:
+        print(f"An error occurred while updating the sheet: {err}")
 
 @app.route('/validate_points', methods=['POST'])
 def validate_points():
     scores = request.json.get('scores', [])
+    if not isinstance(scores, list) or not all(isinstance(score, int) for score in scores):
+        return jsonify({'error': 'Invalid input. Scores must be a list of integers.'}), 400
     result = calculate_point_buy(scores)
     return jsonify(result)
 
@@ -272,6 +321,8 @@ def get_subclasses(class_name):
 def get_spells(class_name):
     """Return spells for a specific class."""
     spells = dnd_spells.get(class_name, {})
+    if not spells:
+        return jsonify({'error': 'Class not found or no spells available for this class'}), 404
     return jsonify(spells)
 
 @app.route('/', methods=['GET', 'POST'])
