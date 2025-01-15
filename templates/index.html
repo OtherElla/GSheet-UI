@@ -497,9 +497,11 @@
             const selectedSpells = [];
             const spellItems = document.querySelectorAll('#selected-spells li');
             spellItems.forEach(item => {
-                // Get only the text content without the Remove button text
-                const spellText = item.childNodes[0].textContent.trim();
-                selectedSpells.push(spellText);
+                // Get only the spell text, excluding the Remove button text
+                const spellText = item.childNodes[0].nodeValue.trim();
+                if (spellText) {
+                    selectedSpells.push(spellText);
+                }
             });
             console.log('Collected spells:', selectedSpells);
             return selectedSpells;
@@ -511,29 +513,33 @@
             const spellData = collectSpellData();
             console.log('Spell data before JSON:', spellData);
 
-            let hiddenClassInput = event.target.querySelector('input[name="class_data"]');
-            let hiddenSpellInput = event.target.querySelector('input[name="spells"]');
+            const formData = {
+                character_name: document.getElementById('character_name').value,
+                class_data: classData,
+                spells: spellData,
+                strength: document.getElementById('strength').value,
+                dexterity: document.getElementById('dexterity').value,
+                constitution: document.getElementById('constitution').value,
+                intelligence: document.getElementById('intelligence').value,
+                wisdom: document.getElementById('wisdom').value,
+                charisma: document.getElementById('charisma').value
+            };
 
-            if (!hiddenClassInput) {
-                hiddenClassInput = document.createElement('input');
-                hiddenClassInput.type = 'hidden';
-                hiddenClassInput.name = 'class_data';
-                event.target.appendChild(hiddenClassInput);
-            }
-
-            if (!hiddenSpellInput) {
-                hiddenSpellInput = document.createElement('input');
-                hiddenSpellInput.type = 'hidden';
-                hiddenSpellInput.name = 'spells';
-                event.target.appendChild(hiddenSpellInput);
-            }
-
-            const spellJSON = JSON.stringify(spellData);
-            console.log('Spell JSON:', spellJSON);
-
-            hiddenClassInput.value = JSON.stringify(classData);
-            hiddenSpellInput.value = spellJSON;
-            event.target.submit();
+            fetch('/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
+            }).then(response => response.json())
+              .then(data => {
+                  console.log('Success:', data);
+                  // Handle success (e.g., redirect to result page)
+              })
+              .catch((error) => {
+                  console.error('Error:', error);
+                  // Handle error
+              });
         }
 
         async function handleClassChange() {
@@ -615,7 +621,10 @@
             if (selectedSpell) {
                 const selectedSpellsContainer = document.getElementById('selected-spells');
                 const spellItem = document.createElement('li');
-                spellItem.textContent = selectedSpell;
+                
+                // Create a text node for the spell
+                const spellText = document.createTextNode(selectedSpell);
+                spellItem.appendChild(spellText);
 
                 // Add a remove button for each spell
                 const removeButton = document.createElement('button');
@@ -627,6 +636,7 @@
 
                 spellItem.appendChild(removeButton);
                 selectedSpellsContainer.appendChild(spellItem);
+                console.log('Added spell:', selectedSpell);
             }
         }
 

@@ -76,28 +76,11 @@ dnd_spells = {
 }
 
 def get_google_credentials():
-    """
-    Get or refresh Google API credentials.
-
-    This function checks for existing Google API credentials in a file named 'token.json'.
-    If the credentials are not found or are invalid, it initiates an OAuth2 flow to obtain new credentials.
-    The credentials are then saved to 'token.json' for future use.
-
-    Returns:
-        Credentials: The Google API credentials.
-    """
+    """Get or refresh Google API credentials."""
     creds = None
     if os.path.exists("token.json"):
         creds = Credentials.from_authorized_user_file("token.json", SCOPES)
-    if not creds:
-        flow = InstalledAppFlow.from_client_secrets_file("credentials.json", SCOPES)
-        creds = flow.run_local_server(port=0)
-    elif not creds.valid:
-        if creds.expired and creds.refresh_token:
-            creds = flow.run_local_server(port=0, authorization_prompt_message='Please visit this URL to authorize this application: {url}')
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file("credentials.json", SCOPES)
-            creds = flow.run_local_server(port=0)
+    if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
@@ -120,7 +103,7 @@ def calculate_point_buy(scores):
             return 2 * (score - 14) + 7
 
     if not all(MIN_SCORE <= score <= MAX_SCORE for score in scores):
-        raise ValueError(f"Scores must be between {MIN_SCORE} and {MAX_SCORE}.")
+        return {'is_valid': False, 'total': 0, 'individual_costs': []}
     
     individual_costs = [calculate_points(score) for score in scores]
     total = sum(individual_costs)
@@ -231,7 +214,7 @@ def update_character_sheet(character_name, class_string, form_data, spreadsheet_
         sheet_metadata = sheet.get(spreadsheetId=spreadsheet_id).execute()
         sheet_name = sheet_metadata['sheets'][0]['properties']['title']
 
-        # Update character name, class string, and ability scores
+        # Update character name and class
         update_sheet_value(sheet, spreadsheet_id, f'{sheet_name}!C6', character_name)
         update_sheet_value(sheet, spreadsheet_id, f'{sheet_name}!T5', class_string)
 
@@ -249,21 +232,10 @@ def update_character_sheet(character_name, class_string, form_data, spreadsheet_
             update_sheet_value(sheet, spreadsheet_id, f'{sheet_name}!{cell}', value)
 
         # Update spells
-        spells_str = form_data.get('spells', '[]')
-        print(f"Raw spells string: {spells_str}")
-        
-        try:
-            spells = json.loads(spells_str)
-            print(f"Parsed spells: {spells}")
-            
-            # Define cell mappings for different spell levels
-            spell_cells = {
-                '1': ['D100:J100', 'N100:T100', 'X100:AD100', 'D101:J101', 
-                      'D102:J102', 'D103:J103', 'D104:J104'],
-                '2': ['N104:T104', 'N101:T101', 'N102:T102', 'N103:T103', 
-                      'X101:AD101', 'X102:AD102', 'X103:AD103', 'X104:AD104']
-            }
+        spells = form_data.get('spells', [])
+        print(f"Raw spells: {spells}")
 
+        try:
             # Group spells by level
             spell_groups = {}
             for spell in spells:
@@ -274,19 +246,30 @@ def update_character_sheet(character_name, class_string, form_data, spreadsheet_
                     if level not in spell_groups:
                         spell_groups[level] = []
                     spell_groups[level].append(spell_name)
+            
+            print(f"Grouped spells: {spell_groups}")
+
+            # Define spell cell mappings
+            spell_cells = {
+                '1': ['D100:J100', 'N100:T100', 'X100:AD100', 'D101:J101', 
+                      'D102:J102', 'D103:J103', 'D104:J104'],
+                '2': ['N104:T104', 'N101:T101', 'N102:T102', 'N103:T103', 
+                      'X101:AD101', 'X102:AD102', 'X103:AD103', 'X104:AD104']
+            }
 
             # Update spells for each level
             for level, level_spells in spell_groups.items():
                 if level in spell_cells:
-                    for cell, spell in zip(spell_cells[level], level_spells):
-                        print(f"Updating {level} spell: {spell} in cell {cell}")
-                        update_sheet_value(sheet, spreadsheet_id, f'{sheet_name}!{cell}', spell)
+                    cells = spell_cells[level]
+                    for idx, spell in enumerate(level_spells):
+                        if idx < len(cells):
+                            cell_range = f'{sheet_name}!{cells[idx]}'
+                            print(f"Updating {level} spell: {spell} in cell {cell_range}")
+                            update_sheet_value(sheet, spreadsheet_id, cell_range, spell)
 
-        except json.JSONDecodeError as err:
-            print(f"JSON decode error: {err}")
-            print(f"Problematic string: {spells_str}")
         except Exception as err:
             print(f"Error processing spells: {err}")
+            print(f"Error details: {str(err)}")
 
     except HttpError as err:
         print(f"An error occurred: {err}")
@@ -320,7 +303,7 @@ def get_subclasses(class_name):
 @app.route('/get_spells/<string:class_name>', methods=['GET'])
 def get_spells(class_name):
     """Return spells for a specific class."""
-    spells = dnd_spells.get(class_name, {})
+    spells = dnd_spells.get(class_name)
     if not spells:
         return jsonify({'error': 'Class not found or no spells available for this class'}), 404
     return jsonify(spells)
@@ -329,12 +312,13 @@ def get_spells(class_name):
 def index():
     if request.method == 'POST':
         try:
-            form_data = request.form
+            form_data = request.get_json()
+            print(f"Received form data: {form_data}")
             new_sheet_id = process_request(form_data)
-            return render_template('result.html', character_name=form_data.get('character_name'), sheet_id=new_sheet_id)
+            return jsonify({'character_name': form_data.get('character_name'), 'sheet_id': new_sheet_id})
         except Exception as e:
             print(f"Error occurred: {e}")
-            return render_template('index.html', error=str(e), classes=dnd_classes, subclasses=dnd_subclasses)
+            return jsonify({'error': str(e)}), 500
     else:
         return render_template('index.html', classes=dnd_classes, subclasses=dnd_subclasses)
 
